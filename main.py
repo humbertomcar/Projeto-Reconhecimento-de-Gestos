@@ -256,7 +256,7 @@ def main():
         image_bgr_display.flags.writeable = True
         current_time = time.time()
 
-        # Processar entrada e reconhecer gestos (Rian e B dividem a explicação desta função)
+        # Processar entrada e reconhecer gestos (Rian e Humberto dividem a explicação desta função)
         current_image_index, last_action_time, image_with_feedback = processar_entrada_e_reconhecer_gestos(
             results, image_bgr_display, current_time, last_action_time,
             current_image_index, image_paths, exibir_slide_atual_fn,
