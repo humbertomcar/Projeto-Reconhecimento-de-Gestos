@@ -7,11 +7,11 @@ import os
 # --- Configurações Globais ---
 # CRIE ESTAS IMAGENS NA MESMA PASTA DO SCRIPT, OU ELAS SERÃO GERADAS AUTOMATICAMENTE
 IMAGE_FILENAMES = [
-    "slide1.png",
-    "slide2.png",
-    "slide3.png",
-    "slide4.png",
-    "slide5.png"
+    "slides/slide1.png",
+    "slides/slide2.png",
+    "slides/slide3.png",
+    "slides/slide4.png",
+    "slides/slide5.png"
 ]
 SLIDE_WINDOW_WIDTH = 800
 SLIDE_WINDOW_HEIGHT = 600
