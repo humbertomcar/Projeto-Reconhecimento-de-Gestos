@@ -4,8 +4,6 @@ import time
 import numpy as np
 import os
 
-# --- Configurações Globais ---
-# CRIE ESTAS IMAGENS NA MESMA PASTA DO SCRIPT, OU ELAS SERÃO GERADAS AUTOMATICAMENTE
 IMAGE_FILENAMES = [
     "slides/1.png",
     "slides/2.png",
@@ -23,8 +21,7 @@ SLIDE_WINDOW_WIDTH = 1920
 SLIDE_WINDOW_HEIGHT = 1080
 SLIDE_WINDOW_NAME = "Slide Atual"
 
-# Configurações de Gestos
-ACTION_COOLDOWN = 1.5  # Segundos
+ACTION_COOLDOWN = 1.5
 INDEX_TIP_ID = 8
 INDEX_PIP_ID = 6
 MIDDLE_TIP_ID = 12
@@ -34,13 +31,7 @@ RING_PIP_ID = 14
 PINKY_TIP_ID = 20
 PINKY_PIP_ID = 18
 
-# --- FUNÇÃO 1: Gerenciamento de Slides e Janela ---
-#  (como a parte que lida com a apresentação visual dos slides)
 def gerenciar_slides_e_janela(image_filenames_list, window_name, win_width, win_height):
-    """
-    Inicializa os caminhos das imagens, cria placeholders se necessário,
-    cria a janela de slides e retorna uma função para exibir os slides.
-    """
     image_paths = []
 
     def create_placeholder_image(filepath, text, width, height):
@@ -99,10 +90,7 @@ def gerenciar_slides_e_janela(image_filenames_list, window_name, win_width, win_
 
     return image_paths, exibir_slide_atual
 
-# --- FUNÇÃO 2: Inicialização dos Componentes de Detecção ---
-# (configuração do MediaPipe Hands) Rian
 def inicializar_componentes_deteccao():
-    """Inicializa a câmera e o MediaPipe Hands."""
     mp_hands = mp.solutions.hands
     hands = mp_hands.Hands(
         max_num_hands=2,
@@ -118,13 +106,7 @@ def inicializar_componentes_deteccao():
         return None, None, None, None
     return cap, hands, mp_drawing, mp_drawing_styles
 
-# --- FUNÇÃO 3: Detecção do Gesto de "Indicador Levantado" ---
-# identificação da pose da mão
 def detectar_gesto_indicador_levantado(landmarks_pixels):
-    """
-    Verifica se o dedo indicador está levantado e os outros dedos principais estão abaixados.
-    Retorna True se o gesto for detectado, False caso contrário.
-    """
     if len(landmarks_pixels) != 21:
         return False
 
@@ -135,16 +117,11 @@ def detectar_gesto_indicador_levantado(landmarks_pixels):
 
     return index_finger_up and middle_finger_down and ring_finger_down and pinky_finger_down
 
-# --- FUNÇÃO 4: Processamento de Entrada e Reconhecimento de Gestos para Ações ---
-# Esta função será dividida na explicação entre Rian e Humberto.
 def processar_entrada_e_reconhecer_gestos(
     hands_results, image_camera, current_time_sec, last_action_time_sec,
     current_slide_idx, all_image_paths, fn_exibir_slide,
     mp_hands_module, mp_drawing_module, mp_drawing_styles_module):
-    """
-    Processa os resultados da detecção de mãos, identifica gestos e atualiza os slides.
-    Retorna o novo índice do slide, o novo tempo da última ação e o frame da câmera com desenhos.
-    """
+
     gesture_feedback_text = ""
     action_taken_this_frame = False
 
@@ -153,10 +130,6 @@ def processar_entrada_e_reconhecer_gestos(
             if action_taken_this_frame:
                 break
 
-            # ##--- INÍCIO DA EXPLICAÇÃO - Rian ---##
-            # Parte: Processamento dos dados brutos da mão e preparação para detecção do gesto.
-
-            # Desenhar landmarks para cada mão
             mp_drawing_module.draw_landmarks(
                 image_camera, hand_landmarks, mp_hands_module.HAND_CONNECTIONS,
                 mp_drawing_styles_module.get_default_hand_landmarks_style(),
@@ -171,18 +144,7 @@ def processar_entrada_e_reconhecer_gestos(
             for lm in hand_landmarks.landmark:
                 landmarks_pixels.append((int(lm.x * w), int(lm.y * h)))
 
-            # Chamada para a Função 3 (detectar_gesto_indicador_levantado),
-            # que Rian explicou em detalhe anteriormente.
-            # O resultado 'is_pointing' é a identificação de baixo nível do gesto.
             is_pointing = detectar_gesto_indicador_levantado(landmarks_pixels)
-            # ##--- FIM DA EXPLICAÇÃO - Rian ---##
-
-
-            # (Rian passa a explicação para Humberto neste ponto)
-
-
-            # ##--- INÍCIO DA EXPLICAÇÃO - Humberto ---##
-            # Parte: Tomada de decisão e ação com base no gesto identificado e na mão.
 
             if is_pointing and (current_time_sec - last_action_time_sec > ACTION_COOLDOWN):
                 action_performed_by_this_hand = False
@@ -211,9 +173,8 @@ def processar_entrada_e_reconhecer_gestos(
                 
                 if action_performed_by_this_hand:
                     action_taken_this_frame = True
-                    print(gesture_feedback_text) # Mover o print para quando a ação é realmente feita
+                    print(gesture_feedback_text)
 
-    # Desenhar feedback na tela da câmera se houver (Humberto continua explicando)
     if gesture_feedback_text:
         feedback_color = (255, 255, 0)
         if "AVANCAR" in gesture_feedback_text: feedback_color = (0, 255, 0)
@@ -221,14 +182,10 @@ def processar_entrada_e_reconhecer_gestos(
         
         cv2.putText(image_camera, gesture_feedback_text, (20, 70), cv2.FONT_HERSHEY_PLAIN,
                     2, feedback_color, 3)
-    # ##--- FIM DA EXPLICAÇÃO - Humberto ---##
 
     return current_slide_idx, last_action_time_sec, image_camera
 
-
-# --- FUNÇÃO PRINCIPAL (main) ---
 def main():
-    # Gerenciar slides e janela (Pode ser mencionado brevemente no início)
     image_paths, exibir_slide_atual_fn = gerenciar_slides_e_janela(
         IMAGE_FILENAMES, SLIDE_WINDOW_NAME, SLIDE_WINDOW_WIDTH, SLIDE_WINDOW_HEIGHT
     )
@@ -238,7 +195,6 @@ def main():
         return
     exibir_slide_atual_fn(current_image_index, image_paths)
 
-    # Inicializar componentes de detecção (Rian começa aqui sua explicação detalhada)
     cap, hands_detector, mp_drawing, mp_drawing_styles = inicializar_componentes_deteccao()
     if not cap:
         cv2.destroyAllWindows()
@@ -257,12 +213,11 @@ def main():
 
         image_rgb = cv2.cvtColor(cv2.flip(image_from_camera, 1), cv2.COLOR_BGR2RGB)
         image_rgb.flags.writeable = False
-        results = hands_detector.process(image_rgb) # (Rian explica o que acontece aqui)
+        results = hands_detector.process(image_rgb)
         image_bgr_display = cv2.cvtColor(image_rgb, cv2.COLOR_RGB2BGR)
         image_bgr_display.flags.writeable = True
         current_time = time.time()
 
-        # Processar entrada e reconhecer gestos (Rian e Humberto dividem a explicação desta função)
         current_image_index, last_action_time, image_with_feedback = processar_entrada_e_reconhecer_gestos(
             results, image_bgr_display, current_time, last_action_time,
             current_image_index, image_paths, exibir_slide_atual_fn,

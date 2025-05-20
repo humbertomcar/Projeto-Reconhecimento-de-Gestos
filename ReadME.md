@@ -11,6 +11,11 @@
 - As bibliotecas necessárias estão disponíveis no requirements.txt
 - É necessário que a versão do python seja entre 3.07 até 3.10 para utilizar a biblioteca mediapipe
 
+3. **Resolução**
+
+- Estamos utilizando por padrão a resolução 1920x1080, caso queira trocar:
+mude no arquivo main.py os valores de `SLIDE_WINDOW_WIDTH` e `SLIDE_WINDOW_HEIGHT` para se adequar ao seu monitor
+
 # Como Rodar
 
 Tendo em vista os requerimentos necessários...
