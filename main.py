@@ -91,61 +91,110 @@ def gerenciar_slides_e_janela(image_filenames_list, window_name, win_width, win_
     return image_paths, exibir_slide_atual
 
 def inicializar_componentes_deteccao():
+    # 1) Seleciona o módulo de detecção de mãos do MediaPipe
     mp_hands = mp.solutions.hands
+
+    # 2) Cria o “detector” propriamente dito com parâmetros de configuração:
     hands = mp_hands.Hands(
-        max_num_hands=2,
-        min_detection_confidence=0.7,
-        min_tracking_confidence=0.7
+        max_num_hands=2,                # permite detectar até 2 mãos simultaneamente
+        min_detection_confidence=0.7,   # confiança mínima (0–1) para considerar uma detecção válida
+        min_tracking_confidence=0.7     # confiança mínima (0–1) para continuar rastreando mãos já detectadas
     )
+
+    # 3) Importa utilitários de desenho para sobrepor esqueleto das mãos
     mp_drawing = mp.solutions.drawing_utils
+    # 4) Importa estilos de desenho (cores, espessuras etc.)
     mp_drawing_styles = mp.solutions.drawing_styles
 
+    # 5) Inicializa a captura de vídeo (webcam, índice 0)
     cap = cv2.VideoCapture(0)
+    # 6) Verifica se a câmera foi aberta corretamente
     if not cap.isOpened():
         print("Erro: Não foi possível abrir a câmera.")
+        # Se der erro, retorna tupla de Nones para sinalizar falha
         return None, None, None, None
+
+    # 7) Retorna os quatro componentes necessários:
+    #    - cap: objeto de captura de vídeo
+    #    - hands: detector de mãos configurado
+    #    - mp_drawing: utilitários de desenho
+    #    - mp_drawing_styles: estilos de desenho
     return cap, hands, mp_drawing, mp_drawing_styles
 
 def detectar_gesto_indicador_levantado(landmarks_pixels):
+    # Se não houver exatamente 21 pontos da mão, não é um conjunto válido → gesto não detectado
     if len(landmarks_pixels) != 21:
         return False
 
-    index_finger_up = landmarks_pixels[INDEX_TIP_ID][1] < landmarks_pixels[INDEX_PIP_ID][1]
+    # Compara a altura (y) da ponta com articulação do indicador, tip = ponta, pip = articulação
+    index_finger_up  = landmarks_pixels[INDEX_TIP_ID][1]  < landmarks_pixels[INDEX_PIP_ID][1]
+    # Compara a altura do dedo médio: True se estiver dobrado/baixo
     middle_finger_down = landmarks_pixels[MIDDLE_TIP_ID][1] >= landmarks_pixels[MIDDLE_PIP_ID][1]
-    ring_finger_down = landmarks_pixels[RING_TIP_ID][1] >= landmarks_pixels[RING_PIP_ID][1]
-    pinky_finger_down = landmarks_pixels[PINKY_TIP_ID][1] >= landmarks_pixels[PINKY_PIP_ID][1]
+    # Mesmo para o dedo anelar
+    ring_finger_down   = landmarks_pixels[RING_TIP_ID][1]   >= landmarks_pixels[RING_PIP_ID][1]
+    # Mesmo para o dedo mínimo
+    pinky_finger_down  = landmarks_pixels[PINKY_TIP_ID][1]  >= landmarks_pixels[PINKY_PIP_ID][1]
 
-    return index_finger_up and middle_finger_down and ring_finger_down and pinky_finger_down
+    # Retorna True somente se indicador está para cima e todos os outros três estão para baixo
+    return (index_finger_up
+            and middle_finger_down
+            and ring_finger_down
+            and pinky_finger_down)
 
 def processar_entrada_e_reconhecer_gestos(
-    hands_results, image_camera, current_time_sec, last_action_time_sec,
-    current_slide_idx, all_image_paths, fn_exibir_slide,
-    mp_hands_module, mp_drawing_module, mp_drawing_styles_module):
+    hands_results,        # resultado da detecção de mãos pelo MediaPipe
+    image_camera,         # frame capturado da câmera (BGR)
+    current_time_sec,     # timestamp atual (em segundos)
+    last_action_time_sec, # timestamp da última ação realizada
+    current_slide_idx,    # índice do slide que está sendo exibido
+    all_image_paths,      # lista com todos os caminhos das imagens dos slides
+    fn_exibir_slide,      # função para mostrar um slide na janela
+    mp_hands_module,      # módulo mp.solutions.hands
+    mp_drawing_module,    # módulo mp.solutions.drawing_utils
+    mp_drawing_styles_module # módulo mp.solutions.drawing_styles
+):
 
+    # Texto que será desenhado na tela mostrando qual gesto foi reconhecido
     gesture_feedback_text = ""
+
+    # Flag para garantir só UMA ação por frame (evita avançar e voltar no mesmo loop)
     action_taken_this_frame = False
 
+    # Só executa se houver landmarks de mão E informação de “handedness” (direita/esquerda)
     if hands_results.multi_hand_landmarks and hands_results.multi_handedness:
+
+        # Itera sobre cada mão detectada
         for i, hand_landmarks in enumerate(hands_results.multi_hand_landmarks):
+
+            # Se já fizemos uma ação neste frame, saímos do loop
             if action_taken_this_frame:
                 break
 
+            # Desenha os pontos e conexões da mão sobre o frame
             mp_drawing_module.draw_landmarks(
-                image_camera, hand_landmarks, mp_hands_module.HAND_CONNECTIONS,
+                image_camera,                    # frame onde desenhar
+                hand_landmarks,                  # pontos da mão
+                mp_hands_module.HAND_CONNECTIONS,# conexões entre pontos
                 mp_drawing_styles_module.get_default_hand_landmarks_style(),
                 mp_drawing_styles_module.get_default_hand_connections_style()
             )
 
+            # Recupera a informação de “left” ou “right” para essa mão
             handedness_info = hands_results.multi_handedness[i]
             hand_label = handedness_info.classification[0].label
+            # → 'Right' ou 'Left'
 
+            # Converte cada landmark (normalizado) para coordenada em pixels
             h, w, _ = image_camera.shape
             landmarks_pixels = []
             for lm in hand_landmarks.landmark:
+                # lm.x e lm.y variam de 0–1, então multiplica pelo tamanho da imagem
                 landmarks_pixels.append((int(lm.x * w), int(lm.y * h)))
 
+            # ───────────────────────────────────────────────────────────────────
+            # Aqui chamamos a função que checa se **apenas** o indicador está reto
             is_pointing = detectar_gesto_indicador_levantado(landmarks_pixels)
-
+    
             if is_pointing and (current_time_sec - last_action_time_sec > ACTION_COOLDOWN):
                 action_performed_by_this_hand = False
                 
