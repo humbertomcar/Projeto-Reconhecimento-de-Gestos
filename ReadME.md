@@ -64,3 +64,13 @@ No diretório do projeto, ative o ambiente virtual:
 `pip install -r requirements.txt`
 
 Lembre-se de utilizar o executável do python presente no ambiente virtual criado, e pronto!
+
+# Referências
+
+Referências utilizadas para a realização dos slides
+
+- https://ieeexplore.ieee.org/document/7780825/authors#authors - Pesquisa moderna sobre gestos dinâmicos com redes convolucionais e recorrentes. 
+
+- https://ieeexplore.ieee.org/document/4154947 - revisa métodos baseados em visão para reconhecimento de gestos.
+ 
+- https://www.repositorio.ufal.br/bitstream/riufal/2257/1/Reconhecimento%20de%20gestos%20customizados%20da%20mão%20em%20tempo%20real%20usando%20aprendizado%20de%20métricas%20e%20grafos%20de%20ação.pdf - Pesquisa sobre reconhecimento de gestos da federal de alagoas

@@ -4,6 +4,7 @@ import time
 import numpy as np
 import os
 
+# lista dos slides
 IMAGE_FILENAMES = [
     "slides/1.png",
     "slides/2.png",
@@ -17,11 +18,15 @@ IMAGE_FILENAMES = [
     "slides/10.png",
     "slides/11.png"
 ]
+# define as dimensões das janelas dos slides
 SLIDE_WINDOW_WIDTH = 1920
 SLIDE_WINDOW_HEIGHT = 1080
 SLIDE_WINDOW_NAME = "Slide Atual"
 
+# cooldown reconhecimento de um novo gesto
 ACTION_COOLDOWN = 1.5
+
+# são os pontos de referência aos dedos e suas articulações
 INDEX_TIP_ID = 8
 INDEX_PIP_ID = 6
 MIDDLE_TIP_ID = 12
@@ -31,10 +36,13 @@ RING_PIP_ID = 14
 PINKY_TIP_ID = 20
 PINKY_PIP_ID = 18
 
+# responsável pelo comportamento das janelas
 def gerenciar_slides_e_janela(image_filenames_list, window_name, win_width, win_height):
     image_paths = []
 
+    # função responsável por criar imagem de placeholder, caso não encontre imagem no caminho especificado
     def create_placeholder_image(filepath, text, width, height):
+        # define o placeholder com uma cor aleatória
         img = np.full((height, width, 3), (np.random.randint(50, 150), np.random.randint(50, 150), np.random.randint(50, 150)), dtype=np.uint8)
         (text_width, text_height), _ = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 1.5, 3)
         text_x = (width - text_width) // 2
@@ -43,24 +51,29 @@ def gerenciar_slides_e_janela(image_filenames_list, window_name, win_width, win_
         cv2.imwrite(filepath, img)
         print(f"Criado placeholder: {filepath}")
 
+    # verifica a existência da imagem, caso não exista, chama a função para criar placeholder
     for i, filename in enumerate(image_filenames_list):
         if not os.path.exists(filename):
             create_placeholder_image(filename, f"Slide de Exemplo {i+1}\n({filename})", win_width, win_height)
         image_paths.append(filename)
 
+    # cria a janela para exibição dos slides
     cv2.namedWindow(window_name)
 
+    # função para exibir o slide atual, recebendo seu index
     def exibir_slide_atual(current_image_index_interno, image_paths_interno):
+        # caso o índice da imagem não seja válido ou não há imagens para exibir
         if not image_paths_interno or not (0 <= current_image_index_interno < len(image_paths_interno)):
             error_img = np.full((win_height, win_width, 3), (0, 0, 50), dtype=np.uint8)
             cv2.putText(error_img, "Erro: Imagem nao encontrada", (50, win_height // 2),
                         cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
-            cv2.imshow(window_name, error_img)
+            cv2.imshow(window_name, error_img) # mostra imagem de erro
             return
 
-        image_path = image_paths_interno[current_image_index_interno]
-        img = cv2.imread(image_path)
+        image_path = image_paths_interno[current_image_index_interno] # imagem atual de acordo com indice
+        img = cv2.imread(image_path) # carrega imagem
 
+        # caso ocorra um erro ao carregar a imagem, cria imagem de erro
         if img is None:
             error_img = np.full((win_height, win_width, 3), (0, 0, 50), dtype=np.uint8)
             cv2.putText(error_img, f"Erro ao carregar: {os.path.basename(image_path)}", (50, win_height // 2),
@@ -68,9 +81,10 @@ def gerenciar_slides_e_janela(image_filenames_list, window_name, win_width, win_
             cv2.imshow(window_name, error_img)
             return
 
+        # ajusta posição da imagem na janela de acordo com a proporção de ambas
         img_h, img_w = img.shape[:2]
-        aspect_ratio_img = img_w / img_h
-        aspect_ratio_win = win_width / win_height
+        aspect_ratio_img = img_w / img_h # proporção imagem
+        aspect_ratio_win = win_width / win_height # proporção janela
 
         if aspect_ratio_img > aspect_ratio_win:
             new_w = win_width
@@ -79,12 +93,13 @@ def gerenciar_slides_e_janela(image_filenames_list, window_name, win_width, win_
             new_h = win_height
             new_w = int(new_h * aspect_ratio_img)
 
-        resized_img = cv2.resize(img, (new_w, new_h), interpolation=cv2.INTER_AREA)
+        resized_img = cv2.resize(img, (new_w, new_h), interpolation=cv2.INTER_AREA) # redimensiona imagem com interpolação para não perder qualidade
         canvas = np.full((win_height, win_width, 3), 0, dtype=np.uint8)
-        x_offset = (win_width - new_w) // 2
-        y_offset = (win_height - new_h) // 2
-        canvas[y_offset:y_offset+new_h, x_offset:x_offset+new_w] = resized_img
+        x_offset = (win_width - new_w) // 2 # centraliza imagem na horizontal
+        y_offset = (win_height - new_h) // 2 # centraliza imagem na vertical
+        canvas[y_offset:y_offset+new_h, x_offset:x_offset+new_w] = resized_img # insere imagem no canvas
 
+        # mostra slide na janela
         cv2.imshow(window_name, canvas)
         cv2.setWindowTitle(window_name, f"Slide: {os.path.basename(image_path)} ({current_image_index_interno+1}/{len(image_paths_interno)})")
 
@@ -195,43 +210,45 @@ def processar_entrada_e_reconhecer_gestos(
             # Aqui chamamos a função que checa se **apenas** o indicador está reto
             is_pointing = detectar_gesto_indicador_levantado(landmarks_pixels)
     
+            # verifica se o gesto está sendo feito e se está fora do cooldown
             if is_pointing and (current_time_sec - last_action_time_sec > ACTION_COOLDOWN):
-                action_performed_by_this_hand = False
+                action_performed_by_this_hand = False # variável auxiliar para identificar a mão
                 
-                if hand_label == "Right":
-                    if current_slide_idx < len(all_image_paths) - 1:
-                        current_slide_idx += 1
-                        fn_exibir_slide(current_slide_idx, all_image_paths)
-                        gesture_feedback_text = "AVANCAR (Direita)"
-                        last_action_time_sec = current_time_sec
-                        action_performed_by_this_hand = True
+                if hand_label == "Right": # verifica se é a mão direita
+                    if current_slide_idx < len(all_image_paths) - 1: # verifica se não é o último slide
+                        current_slide_idx += 1 # incrementa o indice dos slides
+                        fn_exibir_slide(current_slide_idx, all_image_paths) # vai exibir o slide
+                        gesture_feedback_text = "AVANCAR (Direita)" # mensagem que vai ser exibida na câmera
+                        last_action_time_sec = current_time_sec # atualiza o timestamp
+                        action_performed_by_this_hand = True # indica que a ação foi performada
                     else:
-                        gesture_feedback_text = "FIM DOS SLIDES"
+                        gesture_feedback_text = "FIM DOS SLIDES" # caso seja o último slide, indica que é o fim deles
                         last_action_time_sec = current_time_sec
                 
-                elif hand_label == "Left":
-                    if current_slide_idx > 0:
-                        current_slide_idx -= 1
+                elif hand_label == "Left": # verifica se é a mão esquerda
+                    if current_slide_idx > 0: # verifica se não é o primeiro slide
+                        current_slide_idx -= 1 # decrementa o índice dos slides
                         fn_exibir_slide(current_slide_idx, all_image_paths)
                         gesture_feedback_text = "VOLTAR (Esquerda)"
                         last_action_time_sec = current_time_sec
                         action_performed_by_this_hand = True
                     else:
-                        gesture_feedback_text = "INICIO DOS SLIDES"
+                        gesture_feedback_text = "INICIO DOS SLIDES" # caso seja o primeiro, indica que é o início deles
                         last_action_time_sec = current_time_sec
                 
-                if action_performed_by_this_hand:
-                    action_taken_this_frame = True
+                if action_performed_by_this_hand: # se alguma mão executou alguma ação
+                    action_taken_this_frame = True # informa que uma ação já foi executada no frame
                     print(gesture_feedback_text)
-
+    # se houver uma mensagem de feedback
     if gesture_feedback_text:
-        feedback_color = (255, 255, 0)
-        if "AVANCAR" in gesture_feedback_text: feedback_color = (0, 255, 0)
-        elif "VOLTAR" in gesture_feedback_text: feedback_color = (0, 0, 255)
+        feedback_color = (255, 255, 0) # padrão de cor para feedback = amarelo
+        if "AVANCAR" in gesture_feedback_text: feedback_color = (0, 255, 0) # cor de avançar = verde
+        elif "VOLTAR" in gesture_feedback_text: feedback_color = (0, 0, 255) # cor de retornar = azul
         
         cv2.putText(image_camera, gesture_feedback_text, (20, 70), cv2.FONT_HERSHEY_PLAIN,
-                    2, feedback_color, 3)
+                    2, feedback_color, 3) # adiciona as mensagens à camera
 
+    # retorna o indíce do slide atual, timestamp da última ação e o frame da câmera já com o feedback sobreposto
     return current_slide_idx, last_action_time_sec, image_camera
 
 def main():
